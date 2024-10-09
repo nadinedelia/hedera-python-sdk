@@ -1,12 +1,11 @@
-# sdk/client/client.py
-
 import grpc
 from sdk.outputs import token_service_pb2_grpc
 from sdk.token.token_create_transaction import TokenCreateTransaction
 from sdk.client.network import Network
 from sdk.outputs import timestamp_pb2
-import time
 from sdk.outputs import basic_types_pb2
+from sdk.outputs import response_code_pb2
+import time
 
 class Client:
     def __init__(self, network=None):
@@ -26,19 +25,42 @@ class Client:
         transaction.transaction_id = self._generate_transaction_id()
         transaction.node_account_id = self.network.node_account_id.to_proto()
         transaction.sign(self.operator_private_key)
+
         transaction_proto = transaction.to_proto()
-        
+
         if isinstance(transaction, TokenCreateTransaction):
-            response = self.token_stub.createToken(transaction_proto)
+            response = self._submit_transaction_with_retry(transaction_proto)
         else:
             raise NotImplementedError("Transaction type not supported.")
 
+        if response.nodeTransactionPrecheckCode != response_code_pb2.ResponseCodeEnum.OK:
+            print(f"Error during transaction submission: {response.nodeTransactionPrecheckCode}")
+            return None
+
         transaction_id = transaction.transaction_id
         print(f"Transaction submitted. Transaction ID: {self._format_transaction_id(transaction_id)}")
-        
-        # poll for receipt
+
+        return self._poll_for_receipt(transaction_id, timeout)
+
+
+    def _submit_transaction_with_retry(self, transaction_proto, max_retries=3):
+        """Helper method to submit a transaction with retries in case of a 'BUSY' node."""
+        for attempt in range(max_retries):
+            response = self.token_stub.createToken(transaction_proto)
+            if response.nodeTransactionPrecheckCode == response_code_pb2.ResponseCodeEnum.BUSY:
+                print(f"Node is busy (attempt {attempt + 1}/{max_retries}), retrying...")
+                self.network.select_node()  # Switch to a new node
+                time.sleep(2)  # Wait before retrying
+            else:
+                return response
+        return response  # Return the final response even if it's BUSY
+
+
+    def _poll_for_receipt(self, transaction_id, timeout):
+        """Helper method to poll for transaction receipt within the specified timeout."""
         start_time = time.time()
         receipt = None
+
         while time.time() - start_time < timeout:
             try:
                 receipt = self.network.get_transaction_receipt(transaction_id)
@@ -46,8 +68,8 @@ class Client:
                     break
             except Exception as e:
                 print(f"Error fetching receipt: {e}")
-            time.sleep(1)  # wait for 1 second before retrying
-        
+            time.sleep(1)  
+
         if receipt:
             print(f"Transaction Receipt: Status = {receipt.status}, Cost = {receipt.cost} tinybars")
             if hasattr(receipt, 'token_id') and receipt.token_id:
@@ -72,4 +94,4 @@ class Client:
     def _format_transaction_id(self, transaction_id):
         account_id = transaction_id.accountID
         valid_start = transaction_id.transactionValidStart
-        return f"{account_id.shardNum}.{account_id.realmNum}.{account_id.accountNum}-{valid_start.seconds}.{valid_start.nanos}"
+        return f"{account_id.shard}.{account_id.realm}.{account_id.account}-{valid_start.seconds}.{valid_start.nanos}"

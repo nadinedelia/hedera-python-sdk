@@ -3,6 +3,7 @@ from sdk.outputs import transaction_pb2
 from sdk.outputs import transaction_body_pb2
 from sdk.outputs import token_create_pb2
 from sdk.outputs import basic_types_pb2
+from sdk.outputs import transaction_contents_pb2 
 from cryptography.hazmat.primitives import serialization
 
 
@@ -25,25 +26,26 @@ class TokenCreateTransaction:
     def sign(self, private_key):
         # Build the transaction body
         transaction_body = self._build_transaction_body()
-
+        
         # Serialize the transaction body
         transaction_body_bytes = transaction_body.SerializeToString()
-
+        print(f"Signing transaction: {transaction_body_bytes.hex()}")  # Debugging line
+        
         # Sign the serialized transaction body
         signature = private_key.sign(transaction_body_bytes)
+        print(f"Generated Signature: {signature.hex()}")  # Debugging line
 
         # Create SignatureMap
         sig_map = basic_types_pb2.SignatureMap()
         sig_pair = basic_types_pb2.SignaturePair()
-
-        # Get public key bytes
+        
+        # Get the public key in DER format
         public_key_bytes = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.Raw,
-            format=serialization.PublicFormat.Raw
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
-
-        # Use a prefix of the public key
-        sig_pair.pubKeyPrefix = public_key_bytes[:6]
+        
+        sig_pair.pubKeyPrefix = public_key_bytes[:6]  # Use a prefix of the public key
         sig_pair.ed25519 = signature
         sig_map.sigPair.extend([sig_pair])
 
@@ -54,7 +56,6 @@ class TokenCreateTransaction:
 
         # Serialize the SignedTransaction
         self._signed_transaction_bytes = signed_transaction.SerializeToString()
-
 
 
     def to_proto(self):
