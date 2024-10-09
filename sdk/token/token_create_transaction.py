@@ -5,6 +5,7 @@ from sdk.outputs import token_create_pb2
 from sdk.outputs import basic_types_pb2
 from sdk.outputs import transaction_contents_pb2 
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 
 class TokenCreateTransaction:
@@ -29,31 +30,33 @@ class TokenCreateTransaction:
         
         # Serialize the transaction body
         transaction_body_bytes = transaction_body.SerializeToString()
-        print(f"Signing transaction: {transaction_body_bytes.hex()}")  # Debugging line
+        print(f"Signing transaction: {transaction_body_bytes.hex()}")
         
         # Sign the serialized transaction body
         signature = private_key.sign(transaction_body_bytes)
-        print(f"Generated Signature: {signature.hex()}")  # Debugging line
-
+        print(f"Generated Signature: {signature.hex()}")
+        
         # Create SignatureMap
         sig_map = basic_types_pb2.SignatureMap()
         sig_pair = basic_types_pb2.SignaturePair()
         
-        # Get the public key in DER format
+        # Get the public key in raw format
         public_key_bytes = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.DER,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
+            encoding=Encoding.Raw,
+            format=PublicFormat.Raw
         )
+        print(f"Public Key Bytes: {public_key_bytes.hex()}")
         
-        sig_pair.pubKeyPrefix = public_key_bytes[:6]  # Use a prefix of the public key
+        # Use the full public key as the prefix (or a portion if desired)
+        sig_pair.pubKeyPrefix = public_key_bytes
         sig_pair.ed25519 = signature
         sig_map.sigPair.extend([sig_pair])
-
+        
         # Construct the SignedTransaction
         signed_transaction = transaction_contents_pb2.SignedTransaction()
         signed_transaction.bodyBytes = transaction_body_bytes
         signed_transaction.sigMap.CopyFrom(sig_map)
-
+        
         # Serialize the SignedTransaction
         self._signed_transaction_bytes = signed_transaction.SerializeToString()
 

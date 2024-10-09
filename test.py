@@ -19,22 +19,25 @@ def main():
         except Exception as e:
             print(f"Error parsing operator credentials from .env: {e}")
             return
+    else:
+        print("Operator credentials not found in .env file.")
+        return
         
-    # initialise client
+    # Initialize client
     network = Network()
     client = Client(network)
     client.set_operator(operator_id, operator_key)
     
-    # create TokenCreateTransaction
+    # Create TokenCreateTransaction
     token_tx = TokenCreateTransaction()
     token_tx.token_name = "MyToken"
     token_tx.token_symbol = "MTK"
     token_tx.decimals = 2
     token_tx.initial_supply = 1
     token_tx.treasury_account_id = operator_id
-    token_tx.transaction_fee = 10000000
+    token_tx.transaction_fee = 10_000_000_000  
     
-    # execute transaction
+    # Execute transaction
     receipt = client.execute_transaction(token_tx)
     
     if receipt:

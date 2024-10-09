@@ -34,7 +34,9 @@ class Client:
             raise NotImplementedError("Transaction type not supported.")
 
         if response.nodeTransactionPrecheckCode != response_code_pb2.ResponseCodeEnum.OK:
-            print(f"Error during transaction submission: {response.nodeTransactionPrecheckCode}")
+            error_code = response.nodeTransactionPrecheckCode
+            error_message = response_code_pb2.ResponseCodeEnum.Name(error_code)
+            print(f"Error during transaction submission: {error_code} ({error_message})")
             return None
 
         transaction_id = transaction.transaction_id
@@ -50,10 +52,13 @@ class Client:
             if response.nodeTransactionPrecheckCode == response_code_pb2.ResponseCodeEnum.BUSY:
                 print(f"Node is busy (attempt {attempt + 1}/{max_retries}), retrying...")
                 self.network.select_node()  # Switch to a new node
+                # Update the channel and stubs to use the new node
+                self.channel = grpc.insecure_channel(self.network.node_address)
+                self.token_stub = token_service_pb2_grpc.TokenServiceStub(self.channel)
                 time.sleep(2)  # Wait before retrying
             else:
                 return response
-        return response  # Return the final response even if it's BUSY
+        return response
 
 
     def _poll_for_receipt(self, transaction_id, timeout):
@@ -94,4 +99,4 @@ class Client:
     def _format_transaction_id(self, transaction_id):
         account_id = transaction_id.accountID
         valid_start = transaction_id.transactionValidStart
-        return f"{account_id.shard}.{account_id.realm}.{account_id.account}-{valid_start.seconds}.{valid_start.nanos}"
+        return f"{account_id.shardNum}.{account_id.realmNum}.{account_id.accountNum}-{valid_start.seconds}.{valid_start.nanos}"

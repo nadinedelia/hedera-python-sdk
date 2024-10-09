@@ -21,15 +21,15 @@ class Network:
         self.node_address, self.node_account_id = self.select_node()
 
     def select_node(self):
-        # select a node at random
-        return random.choice(self.nodes)
+        # Select a node at random and update instance variables
+        self.node_address, self._node_account_id = random.choice(self.nodes)
+        return self.node_address, self._node_account_id
     
     def get_transaction_receipt(self, transaction_id):
         # Ensure the correct service and method are defined in your protobuf
         receipt_stub = transaction_get_receipt_pb2_grpc.TransactionServiceStub(
             grpc.insecure_channel(self.node_address)
         )
-
         # Build the TransactionGetReceipt query
         query = transaction_get_receipt_pb2.TransactionGetReceiptQuery()
         query.header.node_account_id.CopyFrom(self.node_account_id.to_proto())
@@ -40,7 +40,6 @@ class Network:
 
         return response
 
-    
     @property
     def node_account_id(self):
         # return AccountId 
