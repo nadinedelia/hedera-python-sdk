@@ -41,11 +41,7 @@ def main():
     receipt = client.execute_transaction(token_tx)
     
     if receipt:
-        print("\nTransaction successfully processed.")
-        print(f"Status: {receipt.status}")
-        print(f"Transaction Cost: {receipt.cost} tinybars")
-        if hasattr(receipt, 'token_id') and receipt.token_id:
-            print(f"Created Token ID: {receipt.token_id}")
+        print(receipt)
     else:
         print("\nTransaction failed or receipt not available.")
 

@@ -76,7 +76,6 @@ class Client:
             time.sleep(1)  
 
         if receipt:
-            print(f"Transaction Receipt: Status = {receipt.status}, Cost = {receipt.cost} tinybars")
             if hasattr(receipt, 'token_id') and receipt.token_id:
                 print(f"Created Token ID: {receipt.token_id}")
             return receipt
