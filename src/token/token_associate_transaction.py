@@ -1,5 +1,3 @@
-# src/token_associate_transaction.py
-
 from src.transaction import Transaction
 from src.outputs import token_associate_pb2, transaction_body_pb2
 from src.outputs import basic_types_pb2
